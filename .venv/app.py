@@ -147,7 +147,7 @@ def analyze_cv_with_ai(cv_text):
     Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
     Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
 
-    Vui lòng trả lời dưới dạng một đối tượng JSON hợp lệ, không chứa bất kỳ văn bản nào khác ngoài JSON.
+    Vui lòng trả lời dưới dạng một đối tượng JSON hợp lệ  không chứa bất kỳ văn bản nào khác ngoài JSON.
     Đối tượng JSON phải có các trường sau:
     - "score": một số nguyên từ 0 đến 100, đánh giá tổng thể về CV.
     - "strengths": một chuỗi văn bản mô tả những điểm mạnh chính của CV.
@@ -216,7 +216,7 @@ def login():
         return jsonify({"error": "Thiếu email hoặc mật khẩu"}), 400
     user = User.query.filter_by(email=data['email']).first()
     if user and user.check_password(data['password']):
-        # [SỬA LỖI WARNING] Sử dụng datetime.now(datetime.timezone.utc) thay vì utcnow()
+        # Sử dụng datetime.now(datetime.timezone.utc) thay vì utcnow()
         token = jwt.encode({
             'user_id': user.id,
             'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
@@ -247,7 +247,7 @@ def upload_cv_endpoint(current_user):
     ai_result = analyze_cv_with_ai(cv_text)
     if not ai_result:
         return jsonify({"error": "Lỗi khi AI phân tích"}), 500
-        # [MỚI] Logic để lưu kết quả vào database
+        #  Logic để lưu kết quả vào database
     try:
         # Chuyển danh sách skills thành một chuỗi duy nhất, ngăn cách bởi dấu phẩy
         skills_str = ", ".join(ai_result.get('detected_skills', []))
