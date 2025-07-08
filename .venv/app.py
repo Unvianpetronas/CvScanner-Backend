@@ -53,6 +53,20 @@ class User(db.Model):
         # Khi đăng nhập, so sánh mật khẩu người dùng nhập với mật khẩu đã mã hóa trong DB
         return bcrypt.check_password_hash(self.password_hash, password)
 
+#  Model để lưu kết quả phân tích
+class CvAnalysis(db.Model):
+    __tablename__ = 'cv_analyses'
+    id = db.Column(db.Integer, primary_key=True)
+    file_name = db.Column(db.String(255), nullable=False)
+    score = db.Column(db.Integer)
+    strengths = db.Column(db.Text)
+    weaknesses = db.Column(db.Text)
+    detected_skills = db.Column(db.Text) # Lưu dạng chuỗi, ví dụ: "Java,Python,SQL"
+    upload_timestamp = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+
+
 
 # --- CÁC HÀM LOGIC ---
 def extract_text_from_pdf(pdf_path):
@@ -120,7 +134,7 @@ def analyze_cv_with_ai_openai(cv_text):
 
 
 def analyze_cv_with_ai(cv_text):
-    """Hàm này gửi văn bản CV đến AI và yêu cầu phân tích."""
+    """Hàm này gửi văn bản CV đến AI gemini và yêu cầu phân tích."""
     if not cv_text:
         app.logger.warning("Văn bản CV rỗng, không gửi đến AI.")
         return None
@@ -233,7 +247,27 @@ def upload_cv_endpoint(current_user):
     ai_result = analyze_cv_with_ai(cv_text)
     if not ai_result:
         return jsonify({"error": "Lỗi khi AI phân tích"}), 500
+        # [MỚI] Logic để lưu kết quả vào database
+    try:
+        # Chuyển danh sách skills thành một chuỗi duy nhất, ngăn cách bởi dấu phẩy
+        skills_str = ", ".join(ai_result.get('detected_skills', []))
 
+        # Tạo một bản ghi mới trong bảng CvAnalysis
+        new_analysis = CvAnalysis(
+            file_name=filename,
+            score=ai_result.get('score'),
+            strengths=ai_result.get('strengths'),
+            weaknesses=ai_result.get('weaknesses'),
+            detected_skills=skills_str,
+            user_id=current_user.id  # Liên kết với người dùng đang đăng nhập
+        )
+        db.session.add(new_analysis)
+        db.session.commit()
+        app.logger.info(f"Đã lưu kết quả phân tích cho user {current_user.email}")
+    except Exception as e:
+        db.session.rollback()
+        app.logger.error(f"Lỗi khi lưu kết quả vào database: {e}")
+        # Không cần trả lỗi cho người dùng, chỉ cần log lại ở server
     return jsonify(ai_result), 200
 
 
