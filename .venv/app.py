@@ -1,6 +1,6 @@
 import os
 import json
-import PyPDF2
+import pdfplumber
 import google.generativeai as genai
 import datetime
 import jwt
@@ -70,106 +70,116 @@ class CvAnalysis(db.Model):
 
 # --- CÁC HÀM LOGIC ---
 def extract_text_from_pdf(pdf_path):
-    """Hàm này trích xuất toàn bộ văn bản từ một tệp PDF."""
+    """ trích xuất văn bản từ PDF bằng pdfplumber để có độ chính xác cao hơn."""
     try:
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            # Ghép nối văn bản từ tất cả các trang
-            text = "".join(page.extract_text() for page in reader.pages if page.extract_text())
-            app.logger.info(f"Đã trích xuất thành công văn bản từ {os.path.basename(pdf_path)}")
-            return text
+        text = ""
+        with pdfplumber.open(pdf_path) as pdf:
+            for page in pdf.pages:
+                # page.extract_text() của pdfplumber thông minh hơn trong việc giữ lại layout
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        app.logger.info(f"Đã trích xuất thành công văn bản từ {os.path.basename(pdf_path)}")
+        return text
     except Exception as e:
-        app.logger.error(f"Lỗi khi đọc tệp PDF: {e}")
+        app.logger.error(f"Lỗi khi đọc tệp PDF bằng pdfplumber: {e}")
         return None
 
 
 def analyze_cv_with_ai_openai(cv_text):
     """Hàm này gửi văn bản CV đến ChatGPT để phân tích."""
-    if not cv_text:
-        app.logger.warning("Văn bản CV rỗng, không gửi đến AI.")
-        return None
-
-    # Thiết lập client cho mỗi lần gọi hoặc thiết lập một lần ở global
-    client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-    # Prompt
-    prompt = f"""
-    Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
-    Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
-
-    Vui lòng trả lời dưới dạng một đối tượng JSON hợp lệ, không chứa bất kỳ văn bản nào khác ngoài JSON.
-    Đối tượng JSON phải có các trường sau:
-    - "score": một số nguyên từ 0 đến 100, đánh giá tổng thể về CV.
-    - "strengths": một chuỗi văn bản mô tả những điểm mạnh chính của CV.
-    - "weaknesses": một chuỗi văn bản mô tả những điểm yếu hoặc những gì có thể cải thiện.
-    - "detected_skills": một mảng (array) các chuỗi (string) liệt kê các kỹ năng chính bạn phát hiện được (ví dụ: ["Python", "Java", "Project Management"]).
-
-    Đây là nội dung CV:
-    ---
-    {cv_text}
-    ---
-    """
-
     try:
-        app.logger.info("Đang gửi yêu cầu đến OpenAI (ChatGPT)...")
+        if not cv_text:
+            app.logger.warning("Văn bản CV rỗng, không gửi đến AI.")
+            return None
 
-        # Cách gọi API của OpenAI khác với Google
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo", # Hoặc "gpt-4" nếu bạn có quyền truy cập
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that only responds with valid JSON."},
-                {"role": "user", "content": prompt}
-            ],
-            response_format={ "type": "json_object" } # Yêu cầu trả về JSON
-        )
+        # Thiết lập client cho mỗi lần gọi hoặc thiết lập một lần ở global
+        client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-        # Cách lấy kết quả cũng khác
-        json_response_str = response.choices[0].message.content
-        app.logger.info("Đã nhận phản hồi từ OpenAI.")
-        return json.loads(json_response_str)
+        # Prompt
+        prompt = f"""
+        Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
+        Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
+    
+        Vui lòng trả lời dưới dạng một đối tượng JSON hợp lệ, không chứa bất kỳ văn bản nào khác ngoài JSON.
+        Đối tượng JSON phải có các trường sau:
+        - "score": một số nguyên từ 0 đến 100, đánh giá tổng thể về CV.
+        - "strengths": một chuỗi văn bản mô tả những điểm mạnh chính của CV.
+        - "weaknesses": một chuỗi văn bản mô tả những điểm yếu hoặc những gì có thể cải thiện.
+        - "detected_skills": một mảng (array) các chuỗi (string) liệt kê các kỹ năng chính bạn phát hiện được (ví dụ: ["Python", "Java", "Project Management"]).
+    
+        Đây là nội dung CV:
+        ---
+        {cv_text}
+        ---
+        """
 
+        try:
+            app.logger.info("Đang gửi yêu cầu đến OpenAI (ChatGPT)...")
+
+            # Cách gọi API của OpenAI khác với Google
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo", # Hoặc "gpt-4"
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that only responds with valid JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={ "type": "json_object" } # Yêu cầu trả về JSON
+            )
+
+            # Cách lấy kết quả cũng khác
+            json_response_str = response.choices[0].message.content
+            app.logger.info("Đã nhận phản hồi từ OpenAI.")
+            return json.loads(json_response_str)
+
+        except Exception as e:
+            app.logger.error(f"Lỗi khi gọi API của OpenAI hoặc xử lý JSON: {e}")
+            return None
     except Exception as e:
-        app.logger.error(f"Lỗi khi gọi API của OpenAI hoặc xử lý JSON: {e}")
-        return None
+        app.logger.error(f"Lỗi khi chọn mô hình Gemini")
 
 
 def analyze_cv_with_ai(cv_text):
     """Hàm này gửi văn bản CV đến AI gemini và yêu cầu phân tích."""
-    if not cv_text:
-        app.logger.warning("Văn bản CV rỗng, không gửi đến AI.")
-        return None
-
-    # Chọn mô hình AI
-    model = genai.GenerativeModel('gemini-1.5-pro-002')
-
-    # prompt hướng dẫn AI phải làm gì
-    prompt = f"""
-    Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
-    Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
-
-    Vui lòng trả lời dưới dạng một đối tượng JSON hợp lệ  không chứa bất kỳ văn bản nào khác ngoài JSON.
-    Đối tượng JSON phải có các trường sau:
-    - "score": một số nguyên từ 0 đến 100, đánh giá tổng thể về CV.
-    - "strengths": một chuỗi văn bản mô tả những điểm mạnh chính của CV.
-    - "weaknesses": một chuỗi văn bản mô tả những điểm yếu hoặc những gì có thể cải thiện.
-    - "detected_skills": một mảng (array) các chuỗi (string) liệt kê các kỹ năng chính bạn phát hiện được (ví dụ: ["Python", "Java", "Project Management"]).
-
-    Đây là nội dung CV:
-    ---
-    {cv_text}
-    ---
-    """
-
     try:
-        app.logger.info("Đang gửi yêu cầu đến Google AI...")
-        response = model.generate_content(prompt)
+        if not cv_text:
+            app.logger.warning("Văn bản CV rỗng, không gửi đến AI.")
+            return None
 
-        # Dọn dẹp và chuyển đổi chuỗi trả về thành đối tượng JSON
-        cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
-        app.logger.info("Đã nhận phản hồi từ AI.")
-        return json.loads(cleaned_response)
+        # Chọn mô hình AI
+        model = genai.GenerativeModel('gemini-2.0-flash')
+
+        # prompt hướng dẫn AI phải làm gì
+        prompt = f"""
+        Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
+        Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
+    
+        Vui lòng trả lời dưới dạng một đối tượng JSON hợp lệ  không chứa bất kỳ văn bản nào khác ngoài JSON.
+        Đối tượng JSON phải có các trường sau:
+        - "score": một số nguyên từ 0 đến 100, đánh giá tổng thể về CV.
+        - "strengths": một chuỗi văn bản mô tả những điểm mạnh chính của CV.
+        - "weaknesses": một chuỗi văn bản mô tả những điểm yếu hoặc những gì có thể cải thiện.
+        - "detected_skills": một mảng (array) các chuỗi (string) liệt kê các kỹ năng chính bạn phát hiện được (ví dụ: ["Python", "Java", "Project Management"]).
+    
+        Đây là nội dung CV:
+        ---
+        {cv_text}
+        ---
+        """
+
+        try:
+            app.logger.info("Đang gửi yêu cầu đến Google AI...")
+            response = model.generate_content(prompt)
+
+            # Dọn dẹp và chuyển đổi chuỗi trả về thành đối tượng JSON
+            cleaned_response = response.text.strip().replace("```json", "").replace("```", "")
+            app.logger.info("Đã nhận phản hồi từ AI.")
+            return json.loads(cleaned_response)
+        except Exception as e:
+            app.logger.error(f"Lỗi khi gọi API của AI hoặc xử lý JSON: {e}")
+            return None
     except Exception as e:
-        app.logger.error(f"Lỗi khi gọi API của AI hoặc xử lý JSON: {e}")
+        app.logger.error(f"Lỗi khi chọn mô hình Gemini {e}")
         return None
 
 
