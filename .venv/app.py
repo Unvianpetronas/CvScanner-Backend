@@ -92,7 +92,7 @@ def analyze_cv_with_ai_openai(cv_text):
     # Thiết lập client cho mỗi lần gọi hoặc thiết lập một lần ở global
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    # Prompt vẫn giữ nguyên, nhưng cách gửi đi thì khác
+    # Prompt
     prompt = f"""
     Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
     Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
@@ -142,7 +142,7 @@ def analyze_cv_with_ai(cv_text):
     # Chọn mô hình AI
     model = genai.GenerativeModel('gemini-1.5-pro-002')
 
-    # Câu lệnh (prompt) hướng dẫn AI phải làm gì. Đây là phần quan trọng nhất!
+    # prompt hướng dẫn AI phải làm gì
     prompt = f"""
     Bạn là một chuyên gia tuyển dụng nhân sự (HR) giàu kinh nghiệm. Hãy phân tích nội dung của CV sau đây.
     Hãy đánh giá một cách khách quan dựa trên các tiêu chí: kinh nghiệm làm việc, bộ kỹ năng, trình độ học vấn và cách trình bày.
@@ -216,7 +216,6 @@ def login():
         return jsonify({"error": "Thiếu email hoặc mật khẩu"}), 400
     user = User.query.filter_by(email=data['email']).first()
     if user and user.check_password(data['password']):
-        # Sử dụng datetime.now(datetime.timezone.utc) thay vì utcnow()
         token = jwt.encode({
             'user_id': user.id,
             'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1)
