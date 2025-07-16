@@ -1,36 +1,96 @@
-HELP.md
-target/
-!.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
-
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# =================================================================
+# === TỆP TIN NHẠY CẢM VÀ CẤU HÌNH MÔI TRƯỜNG
+# =================================================================
+# Tệp chứa các biến môi trường (API keys, mật khẩu database,...)
+# Rất quan trọng: Không bao giờ push tệp này lên GitHub!
 .env
+*.env
+.env.*
 
-### IntelliJ IDEA ###
-.idea
+# =================================================================
+# === QUY TẮC CHO PYTHON
+# =================================================================
+
+# Thư mục môi trường ảo
+.venv/
+venv/
+env/
+ENV/
+
+# Thư mục chứa các tệp bytecode và cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Thư mục chứa trứng (eggs) và các bản phân phối
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# =================================================================
+# === QUY TẮC CHO ỨNG DỤNG FLASK
+# =================================================================
+
+# Thư mục chứa các tệp người dùng tải lên
+uploads/
+
+# Tệp log
+*.log
+logs/
+
+# Thư mục chứa các session của Flask (nếu có)
+instance/
+.webassets-cache
+
+# =================================================================
+# === QUY TẮC CHO INTELLIJ IDEA
+# (Bao gồm các quy tắc bạn đã cung cấp)
+# =================================================================
+# Thư mục cấu hình chính của project
+.idea/
+
+# Các tệp cấu hình khác của IntelliJ
 *.iws
 *.iml
 *.ipr
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Các tệp do IntelliJ tạo ra
+/shelf/
+/workspace.xml
 
-### VS Code ###
-.vscode/
+# Các tệp yêu cầu HTTP Client
+/httpRequests/
 
-/Doanlesg/frontend/node_modules
+# Các tệp lưu trữ cục bộ của Datasource
+/dataSources/
+/dataSources.local.xml
+
+# =================================================================
+# === QUY TẮC CHO CÁC IDE KHÁC
+# =================================================================
+
+### Visual Studio Code ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# =================================================================
+# === QUY TẮC CHO HỆ ĐIỀU HÀNH
+# =================================================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
