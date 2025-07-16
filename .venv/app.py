@@ -194,7 +194,6 @@ def token_required(f):
             return jsonify({'error': 'Thiếu token xác thực'}), 401
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            # [SỬA LỖI WARNING] Sử dụng db.session.get thay vì User.query.get
             current_user = db.session.get(User, data['user_id'])
             if not current_user:
                 return jsonify({'error': 'Không tìm thấy người dùng'}), 401
